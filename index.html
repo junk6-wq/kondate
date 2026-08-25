@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>こんだて — 3か月の献立と買い出しを自動で</title>
+<meta name="description" content="3か月分の献立を栄養バランスつきで自動作成し、買い出しリストまで用意します。冷蔵庫の在庫を入れると直近の献立を組み直します。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%8D%B1%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<header class="app">
+  <div class="header-inner">
+    <div class="brand">こんだて<span>.</span></div>
+    <div class="tagline">3か月分の献立と買い出しを、栄養バランスつきで自動作成</div>
+    <button id="reset" class="link no-print" style="margin-left:auto">データを消す</button>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+</header>
+<main id="view"></main>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
