@@ -1,0 +1,14 @@
+{
+  "name": "kondate",
+  "version": "1.0.0",
+  "description": "3か月分の献立を栄養バランスつきで自動作成し、買い出しリストまで用意する。冷蔵庫の在庫を入れると直近の献立を差し替える。",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node --test tests/*.test.mjs",
+    "tune": "node tests/tune.mjs",
+    "test:e2e": "node tests/e2e.mjs"
+  },
+  "license": "MIT"
+}
