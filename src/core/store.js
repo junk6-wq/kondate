@@ -1,6 +1,6 @@
 // 保存層。ブラウザの localStorage に保存する。
 // サーバーを持たないので、献立・設定・在庫はすべて利用者の端末に残る。
-// 献立は90日ぶんで数百KBになるため、レシピの中身ではなくIDだけを保存している。
+// 献立はレシピの中身ではなくIDだけを保存している。
 
 const KEY = 'kondate.v1';
 
@@ -10,7 +10,7 @@ const DEFAULT_STATE = {
   ],
   settings: {
     startDate: null,        // null なら今日
-    days: 90,
+    days: 14,
     shoppingIntervalDays: 7,
     sidesPerDinner: 2,
     weekdayMaxMinutes: 30,
@@ -32,14 +32,17 @@ function safeParse(raw) {
   }
 }
 
+/** 選べる期間(日)。2週間を基本に、1〜4週間。 */
+export const DAY_OPTIONS = [7, 14, 21, 28];
+
 export function loadState() {
   const saved = safeParse(localStorage.getItem(KEY));
   if (!saved) return structuredClone(DEFAULT_STATE);
-  return {
-    ...structuredClone(DEFAULT_STATE),
-    ...saved,
-    settings: { ...DEFAULT_STATE.settings, ...(saved.settings || {}) },
-  };
+  const settings = { ...DEFAULT_STATE.settings, ...(saved.settings || {}) };
+  // 以前は30〜90日を選べた。その設定が残っていたら2週間に直す
+  // (保存済みの献立そのものは、作り直すまでそのまま見られる)。
+  if (!DAY_OPTIONS.includes(settings.days)) settings.days = DEFAULT_STATE.settings.days;
+  return { ...structuredClone(DEFAULT_STATE), ...saved, settings };
 }
 
 export function saveState(state) {
@@ -47,7 +50,7 @@ export function saveState(state) {
     localStorage.setItem(KEY, JSON.stringify(state));
     return true;
   } catch (e) {
-    // 容量超過。90日ぶんの献立を保存できないと使い物にならないので、
+    // 容量超過。献立を保存できないと使い物にならないので、
     // 黙って失敗させず呼び出し側に返す。
     console.warn('保存に失敗しました', e);
     return false;

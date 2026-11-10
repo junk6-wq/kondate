@@ -117,7 +117,7 @@ class PlanContext {
   }
 }
 
-function isExcluded(recipe, options) {
+export function isExcluded(recipe, options) {
   if (options.excludeRecipes.includes(recipe.id)) return true;
   if (options.avoidCuisines.includes(recipe.cuisine)) return true;
   if (options.excludeIngredients.length) {
@@ -369,7 +369,7 @@ function consumePantry(pantryMap, recipe, factor) {
  */
 export function generatePlan(config) {
   const {
-    startDate, days = 90, household, seed = 'kondate', pantry = [],
+    startDate, days = 14, household, seed = 'kondate', pantry = [],
   } = config;
   const options = { ...DEFAULT_OPTIONS, ...(config.options || {}) };
   options.weights = { ...DEFAULT_OPTIONS.weights, ...(config.options?.weights || {}) };

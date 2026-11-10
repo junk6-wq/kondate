@@ -25,87 +25,107 @@ const ok = (label, cond, extra = '') => {
   if (!cond) failed += 1;
   console.log((cond ? '✓' : '✗') + ' ' + label + (extra ? '  ' + extra : ''));
 };
+const tab = async (name) => { await page.click(`nav.tabs button:has-text("${name}")`); await page.waitForTimeout(400); };
+const count = async (sel) => (await page.$$(sel)).length;
 
 await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle' });
-ok('タブが5つ表示される', (await page.$$('nav.tabs button')).length === 5);
-ok('選択中タブがハイライトされる', (await page.$$('nav.tabs button[aria-selected="true"]')).length === 1);
+ok('タブが5つ表示される', await count('nav.tabs button') === 5);
+ok('最初は献立タブが選ばれている',
+  (await page.$eval('nav.tabs button[aria-selected="true"]', n => n.textContent)).includes('献立'));
+ok('献立がないときは「つくる」ボタンが出る', await count('button.btn.big') === 1);
 
 // 3人世帯
+await tab('設定');
 await page.click('text=+ 人を追加'); await page.waitForTimeout(120);
 await page.click('text=+ 人を追加'); await page.waitForTimeout(120);
 let nums = await page.$$('input[type=number]');
 await nums[1].fill('36'); await nums[1].dispatchEvent('change'); await page.waitForTimeout(150);
 nums = await page.$$('input[type=number]');
 await nums[2].fill('8'); await nums[2].dispatchEvent('change'); await page.waitForTimeout(150);
-const kcal = await page.$eval('table.mini tr td', n => n.textContent);
-ok('世帯目標が合算される', kcal === '6450 kcal', kcal);
-ok('味付けの既定がひかえめ', (await page.$$eval('select', ns => ns.map(n=>n.value))).includes('0.85'));
-await shot(page, '1-setup', { fullPage: true  });
+const kcal = await page.$eval('details.hint summary', n => n.textContent);
+ok('世帯目標が合算される', kcal.includes('6450 kcal'), kcal);
+const selects = await page.$$eval('select', ns => ns.map(n => n.value));
+ok('期間の既定が2週間', selects.includes('14'));
+ok('味付けの既定がひかえめ', selects.includes('0.85'));
+await shot(page, '1-setup', { fullPage: true });
 
-await page.click('button.btn:has-text("献立をつくる")');
-await page.waitForTimeout(1500);
-await page.click('nav.tabs button:has-text("献立")'); await page.waitForTimeout(500);
-ok('90日 = 13週', (await page.$$('.week')).length === 13);
-ok('日カードが90枚', (await page.$$('.day')).length === 90);
+await page.click('button.btn:has-text("2週間ぶんつくる")');
+await page.waitForTimeout(1200);
+ok('つくると献立タブに移る',
+  (await page.$eval('nav.tabs button[aria-selected="true"]', n => n.textContent)).includes('献立'));
+ok('日付の帯が14日ぶん', await count('.chip-day') === 14);
+ok('朝・昼・夕のカードが出る', await count('.mealcard') === 3);
+await page.click('.chip-day:nth-child(2)'); await page.waitForTimeout(300);
+ok('日を押すとその日に切り替わる',
+  (await page.$eval('.chip-day:nth-child(2)', n => n.getAttribute('aria-pressed'))) === 'true');
+ok('作り方が入っている', await count('details.recipe ol li') > 10);
+
+// 1品入れ替え
+const beforeDish = await page.$$eval('.dish', ns => ns.map(n => n.textContent).join('|'));
+await page.click('.dish button:has-text("入れ替える")'); await page.waitForTimeout(300);
+const cands = await count('.cand');
+ok('入れ替えの候補が出る', cands > 0 && cands <= 4, `${cands}件`);
+await page.click('.cand'); await page.waitForTimeout(400);
+const afterDish = await page.$$eval('.dish', ns => ns.map(n => n.textContent).join('|'));
+ok('候補を押すと料理が変わる', beforeDish !== afterDish && await count('.cand') === 0);
+await shot(page, '2-plan-day');
+
+await page.click('.seg button:has-text("一覧")'); await page.waitForTimeout(400);
+ok('一覧は 14日 = 2週', await count('.week') === 2 && await count('.day') === 14);
 const dots = await page.$$eval('.day .dot', ns => ns.map(n => n.className.split(' ')[1]));
-ok('栄養判定の色が付く', dots.filter(d=>d==='good').length > 40, `良好${dots.filter(d=>d==='good').length}日 注意${dots.filter(d=>d==='warn').length}日 要改善${dots.filter(d=>d==='bad').length}日`);
-await page.click('.day:nth-child(2)'); await page.waitForTimeout(400);
-ok('詳細に作り方が出る', (await page.$$('.meal ol li')).length > 15);
-ok('詳細に栄養バーが出る', (await page.$$('.n-row')).length === 8);
-await shot(page, '2-plan', {   });
+ok('栄養判定の色が付く', dots.filter(d => d === 'good').length > 6,
+  `良好${dots.filter(d => d === 'good').length}日 注意${dots.filter(d => d === 'warn').length}日 要改善${dots.filter(d => d === 'bad').length}日`);
+await shot(page, '2-plan-list');
+await page.click('.day'); await page.waitForTimeout(300);
+ok('一覧の日を押すと1日表示に戻る', await count('.mealcard') === 3);
 
-await page.click('nav.tabs button:has-text("買い出し")'); await page.waitForTimeout(700);
-ok('買い物回数が13回', (await page.$$('.trip-nav button')).length === 13);
-const aisles = await page.$$eval('.aisle h4', ns => ns.map(n=>n.textContent));
-ok('売り場順に並ぶ', aisles[0] === '青果' && aisles[aisles.length-1] === '冷凍', aisles.join('>'));
-const item0 = await page.$eval('.shop-item label', n => n.textContent.replace(/\s+/g,' ').trim());
-ok('数量が購入単位で出る', /^\d+[^\d]/.test(item0), item0.slice(0,50));
-await page.check('.shop-item input'); await page.waitForTimeout(250);
-ok('チェックが反映される', (await page.$eval('.shop-item', n => n.className)).includes('done'));
-await page.click('.trip-nav button:nth-child(3)'); await page.waitForTimeout(400);
-ok('別の買い物日に切り替わる', (await page.$$('.shop-item')).length > 0);
-await shot(page, '3-shopping', {   });
+await tab('買い出し');
+ok('買い物は2回', await count('.trip-nav button') === 2);
+const aisles = await page.$$eval('.aisle h4', ns => ns.map(n => n.textContent));
+ok('売り場順に並ぶ', aisles[0] === '青果', aisles.join('>'));
+const total = await count('.shop-item');
+await page.click('.shop-item'); await page.waitForTimeout(250);
+ok('行を押すとチェックが付く', await count('.shop-item.done') === 1);
+ok('進み具合が出る', (await page.$eval('.progress', n => n.textContent)).includes(`1 / ${total}`));
+await page.click('.progress button'); await page.waitForTimeout(250);
+ok('買ったものを隠せる', await count('.shop-item') === total - 1);
+await page.click('.trip-nav button:nth-child(2)'); await page.waitForTimeout(400);
+ok('別の買い物日に切り替わる', await count('.shop-item') > 0);
+await shot(page, '3-shopping');
 
-await page.click('nav.tabs button:has-text("冷蔵庫")'); await page.waitForTimeout(300);
-for (const name of ['白菜', '鶏もも肉', '牛乳']) {
-  await page.selectOption('.card select', { label: name }); await page.waitForTimeout(150);
-  await page.click('button:has-text("+ 追加")'); await page.waitForTimeout(250);
+await tab('冷蔵庫');
+for (const [query, name] of [['はくさい', '白菜'], ['とり', '鶏もも肉'], ['ぎゅうにゅう', '牛乳']]) {
+  await page.fill('input.search', query); await page.waitForTimeout(150);
+  await page.click(`.chips .chip:has-text("${name}")`); await page.waitForTimeout(250);
 }
-ok('在庫が3件登録される', (await page.$$('.pantry-row')).length === 3);
+ok('かなで探して在庫が3件登録される', await count('.pantry-row') === 3);
 await page.click('button:has-text("在庫にあわせて組み直す")'); await page.waitForTimeout(1200);
-const changes = await page.$$('.change');
-ok('差し替えが局所的（20件以下）', changes.length > 0 && changes.length <= 20, `${changes.length}件`);
-const usedUp = await page.$$eval('table.mini .tag', ns => ns.map(n=>n.textContent));
+const changes = await count('.change');
+ok('差し替えが局所的（20件以下）', changes > 0 && changes <= 20, `${changes}件`);
+const usedUp = await page.$$eval('table.mini .tag', ns => ns.map(n => n.textContent));
 ok('使い切り判定が出る', usedUp.length === 3, usedUp.join(','));
-await shot(page, '4-pantry', { fullPage: true  });
+await shot(page, '4-pantry', { fullPage: true });
 
-await page.click('nav.tabs button:has-text("栄養")'); await page.waitForTimeout(700);
-ok('週の講評が出る', (await page.$eval('.notice', n=>n.textContent)).length > 8);
-ok('週バーが8項目', (await page.$$('.nutri .n-row')).length >= 8);
-ok('日別テーブルが7行', (await page.$$('table.mini tbody tr')).length === 7);
-const swaps = await page.$$('.swap');
-ok('差し替え候補が出る', swaps.length > 0, `${swaps.length}件`);
-if (swaps.length) {
-  const before = await page.$eval('.swap .headline', n=>n.textContent.replace(/\s+/g,' ').trim());
-  const beforeRow = await page.$$eval('table.mini tbody tr', ns => ns.map(n=>n.textContent.replace(/\s+/g,' ')));
-  await page.click('.swap button'); await page.waitForTimeout(700);
-  const afterHead = await page.$eval('.swap .headline', n=>n.textContent.replace(/\s+/g,' ').trim()).catch(()=>null);
-  const afterRow = await page.$$eval('table.mini tbody tr', ns => ns.map(n=>n.textContent.replace(/\s+/g,' ')));
-  ok('差し替えを適用すると献立と栄養が変わる',
-    afterHead !== before && JSON.stringify(afterRow) !== JSON.stringify(beforeRow),
-    afterHead === null ? '候補を出し切った' : '');
-}
-await shot(page, '5-nutrition', {   });
+await tab('栄養');
+ok('週の講評が出る', (await page.$eval('.notice', n => n.textContent)).length > 8);
+ok('週バーが8項目', await count('.nutri .n-row') >= 8);
+ok('日別テーブルが7行', await count('table.mini tbody tr') === 7);
+await shot(page, '5-nutrition');
 
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(600);
-ok('リロードで献立が保持される', (await page.$$('.day')).length === 90);
-ok('リロード後もタブが選択状態', (await page.$$('nav.tabs button[aria-selected="true"]')).length === 1);
+ok('リロードで献立と在庫が保持される', await count('.chip-day') === 14);
+ok('リロード後もタブが選択状態', await count('nav.tabs button[aria-selected="true"]') === 1);
 
 await page.setViewportSize({ width: 390, height: 844 });
 await page.waitForTimeout(400);
-const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2);
-ok('スマホ幅で横スクロールが出ない', !overflow);
-await shot(page, '6-mobile', {   });
+for (const name of ['献立', '買い出し', '冷蔵庫', '栄養', '設定']) {
+  await tab(name);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2);
+  ok(`スマホ幅で横スクロールが出ない（${name}）`, !overflow);
+}
+ok('スマホ幅ではタブが画面の下に付く',
+  await page.$eval('nav.tabs', n => getComputedStyle(n).position === 'fixed'));
+await shot(page, '6-mobile');
 
 console.log('\nコンソールエラー:', errors.length ? errors : 'なし');
 await browser.close();

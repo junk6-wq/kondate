@@ -5,6 +5,7 @@
 // docs/prompt-design.md の P3 が受け取るデータ形はこのモジュールの出力に合わせてある。
 
 import { RECIPE_BY_ID } from '../data/recipes.js';
+import { isExcluded, DEFAULT_OPTIONS } from './planner.js';
 import { recipeNutritionCached, judgeDay, addNutrition, emptyNutrition, imbalance, NUTRIENT_KEYS } from './nutrition.js';
 
 export const LABELS = {
@@ -154,6 +155,62 @@ export function swapCandidates(plan, dateISO, limit = 5) {
   });
 
   return results.sort((a, b) => b.gain - a.gain).slice(0, limit);
+}
+
+/**
+ * 献立画面で「この1品を別の料理にしたい」ときの候補。
+ *
+ * swapCandidates は栄養が良くなるものしか返さないが、入れ替えたい理由の多くは
+ * 「今日はこれの気分ではない」「材料がない」で、栄養とは関係がない。
+ * ここでは同じ役割の料理を、その日の判定を下げないものから順に返す。
+ * 前後2日に出る料理と、設定で除外した食材を含む料理は出さない。
+ */
+export function mealAlternatives(plan, dateISO, mealIndex, limit = 5, offset = 0) {
+  const dayIndex = plan.daysOut.findIndex((d) => d.date === dateISO);
+  const day = plan.daysOut[dayIndex];
+  const meal = day && day.meals[mealIndex];
+  if (!meal) return [];
+  const from = RECIPE_BY_ID.get(meal.recipeId);
+  const saltScale = plan.saltScale ?? 1;
+  const options = { ...DEFAULT_OPTIONS, ...(plan.options || {}) };
+
+  const nearby = new Set();
+  plan.daysOut.slice(Math.max(0, dayIndex - 2), dayIndex + 3)
+    .forEach((d) => d.meals.forEach((m) => nearby.add(m.recipeId)));
+
+  const base = day.meals.reduce(
+    (acc, m) => addNutrition(acc, recipeNutritionCached(RECIPE_BY_ID.get(m.recipeId), saltScale), plan.factor * m.portion),
+    emptyNutrition(),
+  );
+  const baseJudge = judgeDay(base, plan.targets);
+  const removed = addNutrition(base, recipeNutritionCached(from, saltScale), -plan.factor * meal.portion);
+  const rank = { good: 2, warn: 1, bad: 0 };
+
+  const results = [];
+  RECIPE_BY_ID.forEach((cand) => {
+    if (cand.role !== from.role || nearby.has(cand.id) || isExcluded(cand, options)) return;
+    const next = addNutrition(removed, recipeNutritionCached(cand, saltScale), plan.factor * meal.portion);
+    const j = judgeDay(next, plan.targets);
+    results.push({
+      id: `${dateISO}:${mealIndex}:${cand.id}`,
+      date: dateISO,
+      slot: meal.slot,
+      slotLabel: SLOT_LABELS[meal.slot],
+      fromId: from.id,
+      fromName: from.name,
+      toId: cand.id,
+      toName: cand.name,
+      minutes: cand.minutes,
+      before: baseJudge.overall,
+      after: j.overall,
+      worse: rank[j.overall] < rank[baseJudge.overall],
+      cost: imbalance(next, plan.targets),
+    });
+  });
+
+  // 判定を下げないものを先に、その中では目標に近い順
+  results.sort((a, b) => (a.worse - b.worse) || (a.cost - b.cost));
+  return results.slice(offset, offset + limit);
 }
 
 /** 献立を1品差し替えた新しいプランを返す。元のプランは変更しない。 */
