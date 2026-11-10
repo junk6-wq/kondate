@@ -6,6 +6,8 @@
 
 サーバーもビルドも不要。ブラウザだけで動き、データは端末の中にしか残らない。
 
+公開先は Cloudflare Pages（https://kondate-5ga.pages.dev/）。GitHub と連携していて、main に push すると自動で再デプロイされる。
+
 ## 使い方
 
 ```bash
