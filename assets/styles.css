@@ -172,3 +172,182 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .card { box-shadow: none; border: 0; padding: 0; }
   main { padding: 0; max-width: none; }
 }
+
+/* ============================================================
+   2週間版のUI（2026-11）
+   毎日スマホで開いて「今日なにを作るか」を見る使い方に合わせている。
+   ============================================================ */
+
+.muted { color: var(--muted); }
+button { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, summary:focus-visible, .shop-item:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* --- ヘッダーとタブ --- */
+header.app { position: static; }
+.header-inner { padding: 12px 20px; }
+nav.tabs {
+  position: sticky; top: 0; z-index: 20; max-width: none; justify-content: center;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+nav.tabs button { display: flex; align-items: center; gap: 6px; padding: 11px 16px; }
+nav.tabs .ico { font-size: 16px; line-height: 1; }
+
+@media (max-width: 640px) {
+  /* スマホは親指の届く画面下に固定する */
+  nav.tabs {
+    position: fixed; top: auto; bottom: 0; left: 0; right: 0; padding: 0;
+    border-bottom: 0; border-top: 1px solid var(--line); gap: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -2px 10px rgba(44, 40, 35, .06);
+  }
+  nav.tabs button {
+    flex: 1; flex-direction: column; gap: 2px; padding: 7px 2px 6px; font-size: 11px;
+    border-bottom: 0; border-top: 2px solid transparent;
+  }
+  nav.tabs button[aria-selected="true"] { border-top-color: var(--accent); }
+  nav.tabs .ico { font-size: 20px; }
+  .tagline { display: none; }
+  .header-inner { padding: 8px 16px; }
+  main { padding: 12px 12px calc(84px + env(safe-area-inset-bottom)); }
+  .card { padding: 14px; margin-bottom: 12px; }
+  /* 16px未満だと iOS が入力のたびに画面を拡大する */
+  input, select, textarea { font-size: 16px; }
+}
+
+/* --- ボタンの大きさ --- */
+button.btn { min-height: 40px; }
+button.btn.small { min-height: 34px; padding: 5px 12px; font-size: 13px; }
+button.btn.big { min-height: 48px; padding: 10px 22px; font-size: 15.5px; }
+button.btn.danger { background: var(--surface); border-color: var(--bad); color: var(--bad); }
+button.btn[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); }
+
+/* --- 献立：見出しと日付の帯 --- */
+.plan-head { padding-bottom: 10px; }
+.head-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.head-row h2 { margin: 0; font-size: 15px; flex: 1; min-width: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+.seg button { font: inherit; font-size: 13px; border: 0; background: transparent; padding: 6px 16px; cursor: pointer; color: var(--muted); min-height: 34px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; font-weight: 600; }
+
+.strip { position: relative; display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: thin; }
+.chip-day {
+  flex: 0 0 auto; width: 48px; padding: 6px 0 7px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); font: inherit; color: var(--text);
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.chip-day .wd { font-size: 11px; color: var(--muted); }
+.chip-day .dn { font-size: 17px; font-weight: 700; line-height: 1.2; }
+.chip-day.sat .dn { color: #3f6f9f; }
+.chip-day.sun .dn { color: var(--bad); }
+.chip-day.today { border-color: var(--accent); }
+.chip-day.today .wd { color: var(--accent); font-weight: 700; }
+.chip-day.sel { background: var(--accent); border-color: var(--accent); }
+.chip-day.sel .wd, .chip-day.sel .dn { color: #fff; }
+.chip-day.sel .dot { box-shadow: 0 0 0 2px #fff; }
+@media (min-width: 900px) { .strip { justify-content: center; } }
+
+/* --- 献立：1日の表示 --- */
+.day-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 2px 10px; }
+.day-title h2 { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px; }
+.tag.today-tag { background: var(--accent); color: #fff; }
+
+.mealcard { padding-top: 12px; }
+.meal-label { font-size: 12.5px; font-weight: 700; color: var(--accent); letter-spacing: .08em; margin-bottom: 2px; }
+.dish { padding: 10px 0; border-top: 1px solid var(--line); }
+.meal-label + .dish { border-top: 0; }
+.dish.swapping { box-shadow: inset 3px 0 0 var(--accent); padding-left: 12px; }
+.dish-row { display: flex; align-items: center; gap: 10px; }
+.dish-main { flex: 1; min-width: 0; }
+.dish h3 { margin: 0; font-size: 16px; line-height: 1.45; }
+.dish .slot { font-size: 11px; color: var(--muted); }
+.dish .meta { font-size: 12px; color: var(--muted); }
+
+details.recipe { margin-top: 4px; }
+details > summary { cursor: pointer; font-size: 13px; color: var(--accent); padding: 6px 0; }
+details.recipe .ings-title { font-size: 12px; color: var(--muted); margin-top: 4px; }
+details.recipe ul.ings { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 18px; font-size: 13.5px; }
+details.recipe ul.ings li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dotted var(--line); padding: 3px 0; }
+details.recipe ul.ings li span { color: var(--muted); font-variant-numeric: tabular-nums; }
+details.recipe ol { margin: 6px 0 4px; padding-left: 22px; font-size: 14px; line-height: 1.75; }
+
+.swap-panel { margin: 10px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+.swap-panel .sub { margin: 0 0 2px; font-size: 12.5px; color: var(--muted); }
+.cand {
+  font: inherit; text-align: left; cursor: pointer; min-height: 46px; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--text);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.cand:hover { border-color: var(--accent); background: var(--accent-weak); }
+.cand b { font-size: 14.5px; }
+.cand-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+details.fold > summary { font-size: 14.5px; font-weight: 600; color: var(--text); padding: 0; }
+details.fold[open] > summary { margin-bottom: 10px; }
+details.fold .sub, details.hint .sub { color: var(--muted); font-size: 12.5px; margin: 6px 0; }
+details.hint { margin-top: 12px; }
+
+/* --- 献立：一覧 --- */
+.day.today { border-color: var(--accent); }
+.day .d-head { gap: 4px; }
+.day .d-meals { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+@media (max-width: 900px) {
+  /* 狭い画面では1日1行。日付を左に固定して、縦に流し読みできるようにする */
+  .days { grid-template-columns: 1fr; gap: 6px; }
+  .day { flex-direction: row; align-items: center; gap: 12px; min-height: 0; padding: 8px 10px; }
+  .day .d-head { flex: 0 0 78px; flex-direction: column; align-items: flex-start; }
+  .day .d-meals { flex: 1; gap: 1px; }
+  .day .m { font-size: 13px; }
+}
+
+/* --- はじめての画面 --- */
+.welcome h2 { font-size: 19px; }
+.who { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.who-label { font-size: 12.5px; color: var(--muted); margin-right: 4px; }
+.who .tag { font-size: 12.5px; padding: 3px 10px; }
+
+/* --- 買い出し --- */
+.progress { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.progress .bar { flex: 1; min-width: 120px; height: 9px; }
+.progress-text { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.trip-nav button { min-height: 36px; padding: 6px 12px; color: var(--text); }
+label.shop-item {
+  display: flex; align-items: center; gap: 12px; padding: 9px 6px; margin: 0 -6px;
+  border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 6px;
+}
+label.shop-item:hover { background: var(--surface-2); }
+.shop-item input[type="checkbox"] { width: 22px; height: 22px; margin: 0; flex: 0 0 auto; accent-color: var(--accent); }
+.shop-body { flex: 1; min-width: 0; }
+.shop-name { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; }
+.shop-item.done .shop-name { text-decoration: line-through; color: var(--muted); }
+.shop-item.done .sub2 { opacity: .6; }
+.shop-item .qty { white-space: nowrap; }
+
+/* --- 冷蔵庫・食材えらび --- */
+.add-picker { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.add-picker h4 { margin: 0 0 8px; font-size: 13.5px; }
+input.search { width: 100%; margin-bottom: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: inherit; font-size: 13.5px; min-height: 36px; padding: 5px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--text);
+}
+.chip:hover { border-color: var(--accent); }
+.chip:disabled { background: var(--accent-weak); color: var(--accent); border-color: transparent; cursor: default; }
+.chip.on { background: var(--warn-bg); border-color: transparent; }
+.pantry-row { grid-template-columns: 1fr auto auto auto; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.pantry-name { font-weight: 600; }
+label.inline { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.pantry-row input[type="number"] { width: 78px; }
+@media (max-width: 620px) {
+  .pantry-row { grid-template-columns: auto 1fr auto; }
+  .pantry-name { grid-column: 1 / -1; }
+  .pantry-row input[type="date"] { width: 100%; min-width: 0; }
+  .pantry-row label.inline { min-width: 0; }
+}
+
+/* --- 設定 --- */
+.row.member { align-items: flex-end; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.notice .btn { vertical-align: middle; }
+
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll table.mini { min-width: 440px; }

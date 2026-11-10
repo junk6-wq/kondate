@@ -62,3 +62,18 @@ test('主菜はたんぱく質源を含む', () => {
     assert.ok(n.protein >= 10, `主菜 ${r.name} のたんぱく質が ${n.protein.toFixed(1)}g しかない`);
   });
 });
+
+test('漢字を含む食材名には読みがあり、かなで探せる', async () => {
+  const { YOMI, searchIngredients } = await import('../src/data/yomi.js');
+  const { INGREDIENTS } = await import('../src/data/ingredients.js');
+  INGREDIENTS.filter((i) => /[\u4e00-\u9fff]/.test(i.name)).forEach((i) => {
+    assert.ok(YOMI[i.id], `${i.name} の読みが src/data/yomi.js にない`);
+  });
+  Object.keys(YOMI).forEach((id) => assert.ok(INGREDIENTS.some((i) => i.id === id), `${id} は食材マスタにない`));
+  const names = (q) => searchIngredients(q).map((i) => i.name);
+  assert.ok(names('とり').includes('鶏もも肉'));
+  assert.ok(names('たまご').includes('卵'));
+  assert.ok(names('にら').includes('ニラ'));
+  assert.ok(names('キャベツ').includes('キャベツ'));
+  assert.deepEqual(names('  '), []);
+});

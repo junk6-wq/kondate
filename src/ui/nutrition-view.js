@@ -32,7 +32,8 @@ export function renderNutrition(state, actions) {
 
   root.append(el('section', { class: 'card' }, [
     el('h2', {}, `第${wi + 1}週の日別（${formatDate(week.from, true)} 〜 ${formatDate(week.to)}）`),
-    el('table', { class: 'mini' }, [
+    // 8列あるのでスマホでは表だけを横に送る(ページ全体が横に動かないように)
+    el('div', { class: 'table-scroll' }, el('table', { class: 'mini' }, [
       el('thead', {}, el('tr', {}, [
         el('th', {}, '日'), el('th', {}, '判定'),
         ...['kcal', 'protein', 'salt', 'fiber', 'calcium', 'veg'].map((k) => el('th', { class: 'num' }, LABELS[k])),
@@ -51,7 +52,7 @@ export function renderNutrition(state, actions) {
           }, pct == null ? '—' : `${pct}%`);
         }),
       ]))),
-    ]),
+    ])),
   ]));
 
   const focus = state.ui.focusDate

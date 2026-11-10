@@ -45,6 +45,13 @@ export function select(options, value, onchange, attrs = {}) {
 }
 
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
+export const WEEKDAYS = WD;
+
+/** 検索用に、カタカナをひらがなに寄せて空白を落とす(「にら」で「ニラ」が見つかるように)。 */
+export function kana(text) {
+  return String(text).replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
+    .replace(/s+/g, '').toLowerCase();
+}
 
 export function formatDate(iso, withYear = false) {
   const [y, m, d] = iso.split('-').map(Number);

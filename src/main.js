@@ -1,8 +1,8 @@
 // アプリ本体。状態を1か所に持ち、変更があれば現在のタブを描き直すだけの素朴な作り。
-// 90日ぶんの再描画でも数十msなので、差分更新の仕組みは持たせていない。
+// 2週間ぶんの再描画は数msなので、差分更新の仕組みは持たせていない。
 
 import { loadState, saveState, clearState } from './core/store.js';
-import { generatePlan, toISO } from './core/planner.js';
+import { generatePlan } from './core/planner.js';
 import { el, clear, todayISO } from './ui/dom.js';
 import { renderSetup } from './ui/setup-view.js';
 import { renderPlan } from './ui/plan-view.js';
@@ -10,12 +10,13 @@ import { renderShopping } from './ui/shopping-view.js';
 import { renderPantry } from './ui/pantry-view.js';
 import { renderNutrition } from './ui/nutrition-view.js';
 
+// 毎日開くものを左から。設定は最初に一度さわれば済むので最後に置く。
 const TABS = [
-  ['setup', '設定'],
-  ['plan', '献立'],
-  ['shopping', '買い出し'],
-  ['pantry', '冷蔵庫'],
-  ['nutrition', '栄養'],
+  ['plan', '献立', '🍱'],
+  ['shopping', '買い出し', '🛒'],
+  ['pantry', '冷蔵庫', '🧊'],
+  ['nutrition', '栄養', '📊'],
+  ['setup', '設定', '⚙️'],
 ];
 
 const RENDERERS = {
@@ -24,7 +25,12 @@ const RENDERERS = {
 };
 
 const state = loadState();
-state.ui = { tab: state.plan ? 'plan' : 'setup', tripIndex: 0, weekIndex: 0 };
+// 献立がなくても献立タブから始める(そこに「つくる」ボタンがある)。
+// selectedDate / tripIndex が null のあいだは、各画面が今日に合わせて選ぶ。
+state.ui = {
+  tab: 'plan', planMode: 'day', selectedDate: null, swap: null,
+  tripIndex: null, hideDone: false, weekIndex: 0,
+};
 
 const main = document.getElementById('view');
 const tabsEl = document.getElementById('tabs');
@@ -44,10 +50,19 @@ const actions = {
     Object.assign(state.ui, uiPatch, { tab });
     render();
   },
-  generate() {
+  /**
+   * 献立をつくる。reseed を付けると別の案になる。
+   * 開始日は指定がなければ今日。設定に残した開始日は1回使ったら消す
+   * (残したままだと、次に作り直したとき過去の日付から始まってしまう)。
+   */
+  generate({ startDate = null, reseed = false } = {}) {
     const s = state.settings;
+    const today = todayISO();
+    const start = startDate || (s.startDate && s.startDate >= today ? s.startDate : today);
+    s.startDate = null;
+    if (reseed) s.seed = null;
     state.plan = generatePlan({
-      startDate: s.startDate || todayISO(),
+      startDate: start,
       days: s.days,
       household: state.household,
       seed: s.seed || defaultSeed(),
@@ -61,8 +76,10 @@ const actions = {
       },
     });
     state.checkedItems = {};
-    state.ui.tab = 'plan';
-    state.ui.selectedDate = state.plan.daysOut[0].date;
+    Object.assign(state.ui, {
+      tab: 'plan', planMode: 'day', selectedDate: null, swap: null,
+      tripIndex: null, weekIndex: 0, replanResult: null, focusDate: null,
+    });
     persist();
     render();
   },
@@ -103,11 +120,11 @@ function banner(text) {
 
 function renderTabs() {
   clear(tabsEl);
-  TABS.forEach(([id, label]) => {
+  TABS.forEach(([id, label, icon]) => {
     tabsEl.append(el('button', {
       'aria-selected': state.ui.tab === id,
       onclick: () => actions.setUi({ tab: id }),
-    }, label));
+    }, [el('span', { class: 'ico', 'aria-hidden': true }, icon), el('span', {}, label)]));
   });
 }
 
@@ -116,6 +133,7 @@ function renderTabs() {
 // 走っている間の要求は1回にまとめて後追いで実行する。
 let rendering = false;
 let renderQueued = false;
+let shownTab = null;
 
 function render() {
   if (rendering) { renderQueued = true; return; }
@@ -124,15 +142,14 @@ function render() {
     renderTabs();
     clear(main);
     main.append(RENDERERS[state.ui.tab](state, actions));
-    window.scrollTo({ top: 0 });
+    // 先頭に戻すのはタブを替えたときだけ。買い物のチェックや料理の入れ替えのたびに
+    // 戻ると、いま触っていた場所を毎回探し直すことになる。
+    if (shownTab !== state.ui.tab) window.scrollTo({ top: 0 });
+    shownTab = state.ui.tab;
   } finally {
     rendering = false;
   }
   if (renderQueued) { renderQueued = false; render(); }
 }
-
-document.getElementById('reset').addEventListener('click', () => {
-  if (confirm('保存した献立・設定・冷蔵庫の中身をすべて消します。よろしいですか？')) actions.reset();
-});
 
 render();

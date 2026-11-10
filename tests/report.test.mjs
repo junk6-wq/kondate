@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generatePlan } from '../src/core/planner.js';
 import {
-  weeklyReport, swapCandidates, applySwap, describeIssues, settingSuggestions, localHeadline,
+  weeklyReport, swapCandidates, applySwap, describeIssues, settingSuggestions, localHeadline, mealAlternatives,
 } from '../src/core/report.js';
+import { RECIPE_BY_ID } from '../src/data/recipes.js';
 
 const HOUSEHOLD = [{ age: 38, sex: 'male' }, { age: 36, sex: 'female' }, { age: 8, sex: 'female' }];
 const plan = generatePlan({ startDate: '2026-09-01', days: 28, household: HOUSEHOLD, seed: 'rep' });
@@ -143,4 +144,39 @@ test('PFCの指摘が適正範囲内に見える丸めをしない', () => {
   };
   const text = describeIssues(fake, plan.targets)[0].text;
   assert.ok(!/の20%（適正 20/.test(text), `丸めで範囲内に見えている: ${text}`);
+});
+
+test('1品の入れ替え候補は同じ役割で、前後の日と重ならない', () => {
+  const day = plan.daysOut[5];
+  const idx = day.meals.findIndex((m) => m.slot === 'dinner-main');
+  const cands = mealAlternatives(plan, day.date, idx, 5);
+  assert.equal(cands.length, 5);
+  const nearby = new Set(plan.daysOut.slice(3, 8).flatMap((d) => d.meals.map((m) => m.recipeId)));
+  cands.forEach((c) => {
+    assert.equal(c.slot, 'dinner-main');
+    assert.ok(!nearby.has(c.toId), `${c.toName} が前後2日に出ている`);
+  });
+  // 判定を下げない候補が先に並ぶ
+  const firstWorse = cands.findIndex((c) => c.worse);
+  if (firstWorse >= 0) assert.ok(cands.slice(firstWorse).every((c) => c.worse));
+  // 「ほかの候補」で続きが出て、重ならない
+  const more = mealAlternatives(plan, day.date, idx, 5, 5);
+  assert.ok(more.every((c) => !cands.some((x) => x.toId === c.toId)));
+  // 適用すると、その1品だけが変わる
+  const next = applySwap(plan, cands[0]);
+  assert.equal(next.daysOut[5].meals[idx].recipeId, cands[0].toId);
+  assert.equal(next.daysOut[5].meals.filter((m, i) => m.recipeId !== day.meals[i].recipeId).length, 1);
+});
+
+test('入れ替え候補に、除外した食材を含む料理は出ない', () => {
+  const p = generatePlan({
+    startDate: '2026-09-01', days: 7, household: HOUSEHOLD, seed: 'ex2',
+    options: { excludeIngredients: ['tamago'] },
+  });
+  const idx = p.daysOut[2].meals.findIndex((m) => m.slot === 'breakfast');
+  const cands = mealAlternatives(p, p.daysOut[2].date, idx, 50);
+  assert.ok(cands.length > 0);
+  cands.forEach((c) => {
+    assert.ok(!RECIPE_BY_ID.get(c.toId).ingredients.some((i) => i.id === 'tamago'), c.toName);
+  });
 });
